@@ -90,12 +90,15 @@ rm -rf temp-luci-adguard  # 清理临时目录
 # 删除feeds里自带的旧版Aurora主题
 rm -rf feeds/luci/themes/luci-theme-aurora
 rm -rf feeds/luci/applications/luci-app-aurora-config
-# 克隆官方最新版源码到package目录
+# 克隆官方最新版源码到package目录（根目录直接带Makefile，无需中转）
 git clone --depth=1 https://github.com/eamonxg/luci-theme-aurora package/luci-theme-aurora
 git clone --depth=1 https://github.com/eamonxg/luci-app-aurora-config package/luci-app-aurora-config
 
-# Tailscale（异地组网）
-git clone --depth=1 https://github.com/GuNanOvO/openwrt-tailscale package/tailscale
+# ========== Tailscale（异地组网） ==========
+rm -rf feeds/packages/net/tailscale
+git clone --depth=1 https://github.com/GuNanOvO/openwrt-tailscale temp-tailscale
+cp -rf temp-tailscale/package/tailscale package/
+rm -rf temp-tailscale
 
 # Bandix（流量监控）
 # git clone --depth=1 https://github.com/timsaya/openwrt-bandix package/openwrt-bandix
@@ -117,6 +120,9 @@ git clone --depth=1 https://github.com/vernesong/OpenClash package/luci-app-open
 
 # 清理 PassWall 的 chnlist 规则文件
 echo "baidu.com"  > package/luci-app-passwall/luci-app-passwall/root/usr/share/passwall/rules/chnlist
+
+# ========== 修复Rust LLVM下载404问题 ==========
+echo "CONFIG_RUST_BUILD_LLVM_FROM_SRC=y" >> .config
 
 # 更新包源
 ./scripts/feeds install -f -a
