@@ -125,11 +125,9 @@ echo "baidu.com"  > package/luci-app-passwall/luci-app-passwall/root/usr/share/p
 # 更新包源
 ./scripts/feeds install -f -a
 
-# 禁用Rust的CI预编译LLVM下载，改用源码编译
-if [ -f "feeds/packages/lang/rust/files/bootstrap-config.toml" ]; then
-    sed -i 's/download-ci-llvm = true/download-ci-llvm = false/g' feeds/packages/lang/rust/files/bootstrap-config.toml
-fi
-
-
 # 重新加载配置
 make defconfig
+
+# 禁用Rust语言环境，解决LLVM 404报错
+sed -i 's/CONFIG_RUST=y/CONFIG_RUST=n/g' .config
+echo "CONFIG_RUST=n" >> .config
