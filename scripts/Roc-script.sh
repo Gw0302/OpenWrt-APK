@@ -121,11 +121,15 @@ git clone --depth=1 https://github.com/vernesong/OpenClash package/luci-app-open
 # 清理 PassWall 的 chnlist 规则文件
 echo "baidu.com"  > package/luci-app-passwall/luci-app-passwall/root/usr/share/passwall/rules/chnlist
 
-# ========== 修复Rust LLVM下载404问题 ==========
-echo "CONFIG_RUST_BUILD_LLVM_FROM_SRC=y" >> .config
 
 # 更新包源
 ./scripts/feeds install -f -a
+
+# 官方修复方案：禁用Rust的CI预编译LLVM下载，改用源码编译
+if [ -f "feeds/packages/lang/rust/files/bootstrap-config.toml" ]; then
+    sed -i 's/download-ci-llvm = true/download-ci-llvm = false/g' feeds/packages/lang/rust/files/bootstrap-config.toml
+fi
+
 
 # 重新加载配置
 make defconfig
