@@ -125,7 +125,7 @@ echo "baidu.com"  > package/luci-app-passwall/luci-app-passwall/root/usr/share/p
 # 更新包源
 ./scripts/feeds install -f -a
 
-# 官方修复方案：禁用Rust的CI预编译LLVM下载，改用源码编译
+# 禁用Rust的CI预编译LLVM下载，改用源码编译
 if [ -f "feeds/packages/lang/rust/files/bootstrap-config.toml" ]; then
     sed -i 's/download-ci-llvm = true/download-ci-llvm = false/g' feeds/packages/lang/rust/files/bootstrap-config.toml
 fi
