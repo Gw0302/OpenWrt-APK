@@ -133,10 +133,7 @@ sed -i 's/CONFIG_RUST=y/CONFIG_RUST=n/g' .config
 echo "CONFIG_RUST=n" >> .config
 
 # 修复GMP host编译 ca-cert.pem 404报错（download-ci-aws功能尝试下载Cirrus CI证书失效）
-# 方案1：在configure命令中禁用download-ci-aws功能
-if [ -f "tools/gmp/Makefile" ]; then
-  sed -i '/HOST_CONFIGURE_CMD/s|\./configure|./configure --disable-download-ci-aws|' tools/gmp/Makefile
-fi
-# 方案2（备选）：创建本地ca-cert.pem防止GMP编译时尝试在线下载
-# mkdir -p /tmp/gmp-cert
-# openssl req -x509 -newkey rsa:2048 -keyout /tmp/gmp-cert/key.pem -out /tmp/gmp-cert/ca-cert.pem -days 365 -nodes 2>/dev/null || true
+
+# 创建本地ca-cert.pem防止GMP编译时尝试在线下载
+mkdir -p /tmp/gmp-cert
+openssl req -x509 -newkey rsa:2048 -keyout /tmp/gmp-cert/key.pem -out /tmp/gmp-cert/ca-cert.pem -days 365 -nodes 2>/dev/null || true
