@@ -128,9 +128,25 @@ echo "baidu.com"  > package/luci-app-passwall/luci-app-passwall/root/usr/share/p
 # 重新加载配置
 make defconfig
 
-# 禁用Rust语言环境，解决LLVM 404报错
+# 禁用Rust语言环境，解决LLVM 404报错（该方式无效，被下方真正修复替代）
+# 保留作后备：防止配置里有 CONFIG_RUST=y 残留
 sed -i 's/CONFIG_RUST=y/CONFIG_RUST=n/g' .config
 echo "CONFIG_RUST=n" >> .config
+
+# ========== 修复 Rust LLVM 404 报错（官方PR #28680 + #26643 方案） ==========
+# 问题原因：rust编译时默认从ci-artifacts.rust-lang.org下载预编译LLVM
+# 旧构建产物会被删除，导致404。官方修复：llvm.download-ci-llvm=false（本地编译LLVM）
+# 另GitHub Actions环境下rust bootstrap会误判自己在rust上游CI环境中，额外报错。需 unset GITHUB_ACTIONS
+if [ -f "feeds/packages/lang/rust/Makefile" ]; then
+  # 方法1 - 修改 HOST_CONFIGURE_ARGS 中的 llvm.download-ci-llvm=true -> false
+  sed -i 's|--set=llvm.download-ci-llvm=true|--set=llvm.download-ci-llvm=false|g' feeds/packages/lang/rust/Makefile
+  # 方法2 - 兜底：如果上面没匹配到（比如参数格式有变化），直接把所有download-ci-llvm改为false
+  sed -i 's|download-ci-llvm=true|download-ci-llvm=false|g' feeds/packages/lang/rust/Makefile
+  # 方法3 - PR #26643：防止rust bootstrap在GitHub Actions环境下误判为上游rustc CI
+  # 查找定义 Host/Compile 或执行 x.py 的行，前置 unset GITHUB_ACTIONS 和 CI
+  sed -i '/x\.py/s|python3|env -u GITHUB_ACTIONS -u CI -u GITHUB_JOB -u RUNNER_ENV python3|g' feeds/packages/lang/rust/Makefile
+  # 也在 HOST_CONFIGURE_CMD / Make 相关变量中清除（如果有的话）
+fi
 
 # 修复GMP host编译 ca-cert.pem 404报错
 # GMP的download-ci-aws在bootstrap阶段尝试从Cirrus CI下载ca-cert.pem（返回404）
