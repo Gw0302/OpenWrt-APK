@@ -137,16 +137,30 @@ echo "CONFIG_RUST=n" >> .config
 # 问题原因：rust编译时默认从ci-artifacts.rust-lang.org下载预编译LLVM
 # 旧构建产物会被删除，导致404。官方修复：llvm.download-ci-llvm=false（本地编译LLVM）
 # 另GitHub Actions环境下rust bootstrap会误判自己在rust上游CI环境中，额外报错。需 unset GITHUB_ACTIONS
-if [ -f "feeds/packages/lang/rust/Makefile" ]; then
-  # 方法1 - 修改 HOST_CONFIGURE_ARGS 中的 llvm.download-ci-llvm=true -> false
-  sed -i 's|--set=llvm.download-ci-llvm=true|--set=llvm.download-ci-llvm=false|g' feeds/packages/lang/rust/Makefile
-  # 方法2 - 兜底：如果上面没匹配到（比如参数格式有变化），直接把所有download-ci-llvm改为false
-  sed -i 's|download-ci-llvm=true|download-ci-llvm=false|g' feeds/packages/lang/rust/Makefile
-  # 方法3 - PR #26643：防止rust bootstrap在GitHub Actions环境下误判为上游rustc CI
-  # 查找定义 Host/Compile 或执行 x.py 的行，前置 unset GITHUB_ACTIONS 和 CI
-  sed -i '/x\.py/s|python3|env -u GITHUB_ACTIONS -u CI -u GITHUB_JOB -u RUNNER_ENV python3|g' feeds/packages/lang/rust/Makefile
-  # 也在 HOST_CONFIGURE_CMD / Make 相关变量中清除（如果有的话）
-fi
+# 同时尝试两条路径：feeds/packages/ (原始feed位置) 和 package/feeds/packages/ (符号链接位置)
+for RUST_MK in "feeds/packages/lang/rust/Makefile" "package/feeds/packages/lang/rust/Makefile"; do
+  if [ -f "$RUST_MK" ]; then
+    echo "[Rust-Fix] Patching $RUST_MK"
+    # 方法1 - 修改 HOST_CONFIGURE_ARGS 中的 llvm.download-ci-llvm=true -> false
+    sed -i 's|--set=llvm.download-ci-llvm=true|--set=llvm.download-ci-llvm=false|g' "$RUST_MK"
+    # 方法2 - 兜底：如果上面没匹配到（比如参数格式有变化），直接把所有download-ci-llvm改为false
+    sed -i 's|download-ci-llvm=true|download-ci-llvm=false|g' "$RUST_MK"
+    # 方法3 - PR #26643：防止rust bootstrap在GitHub Actions环境下误判为上游rustc CI
+    # ImmortalWrt Makefile 中使用的是 $(PYTHON) 变量，不是直接 python3
+    if grep -q '\$(PYTHON).*x\.py' "$RUST_MK"; then
+      sed -i '/\$(PYTHON).*x\.py/s|\$(PYTHON)|env -u GITHUB_ACTIONS -u CI -u GITHUB_JOB \$(PYTHON)|g' "$RUST_MK"
+    fi
+    # 兜底：如果是直接用 python3 也处理
+    if grep -q 'python3.*x\.py' "$RUST_MK"; then
+      sed -i '/python3.*x\.py/s|python3|env -u GITHUB_ACTIONS -u CI -u GITHUB_JOB python3|g' "$RUST_MK"
+    fi
+    # 打印验证结果
+    echo "[Rust-Fix] Verify (download-ci-llvm):"
+    grep 'download-ci-llvm' "$RUST_MK" || echo "  [warn] not found"
+    echo "[Rust-Fix] Verify (env wrapper x.py):"
+    grep 'x\.py' "$RUST_MK" || echo "  [warn] not found"
+  fi
+done
 
 # 修复GMP host编译 ca-cert.pem 404报错
 # GMP的download-ci-aws在bootstrap阶段尝试从Cirrus CI下载ca-cert.pem（返回404）
